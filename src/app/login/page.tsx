@@ -1,12 +1,20 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import Cookies from 'js-cookie'
 
-// Simulación de una base de datos de usuarios
-const users = [
-  { email: 'usuario@ejemplo.com', password: 'contraseña123' }
-]
+interface User {
+  email: string;
+  password: string;
+  name: string;
+}
+
+// Inicializa la base de datos de usuarios desde las cookies
+const getUsersFromCookies = () => {
+  const users = Cookies.get('users')
+  return users ? JSON.parse(users) : []
+}
 
 export default function Login() {
   const [isLogin, setIsLogin] = useState(true)
@@ -15,6 +23,13 @@ export default function Login() {
   const [name, setName] = useState('')
   const [error, setError] = useState('')
   const router = useRouter()
+  const [users, setUsers] = useState<User[]>(getUsersFromCookies());
+
+
+  useEffect(() => {
+    // Actualiza la cookie cuando los usuarios cambien
+    Cookies.set('users', JSON.stringify(users), { expires: 7 }) // La cookie expira en 7 días
+  }, [users])
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -22,20 +37,24 @@ export default function Login() {
 
     if (isLogin) {
       // Lógica de inicio de sesión
-      const user = users.find(u => u.email === email && u.password === password)
+      const user = users.find((u: User) => u.email === email && u.password === password);
+
       if (user) {
         // Usuario encontrado, redirigir a la página principal
         router.push('/')
       } else {
         setError('Correo electrónico o contraseña incorrectos')
+        setEmail('') // Limpia el campo de email
+        setPassword('') // Limpia el campo de contraseña
       }
     } else {
       // Lógica de registro
-      if (users.some(u => u.email === email)) {
-        setError('Este correo electrónico ya está registrado')
+      if (users.some((u: User) => u.email === email)) {
+        setError(`El correo electrónico ${email} ya está registrado`)
       } else {
-        // Simular el registro añadiendo el nuevo usuario a la "base de datos"
-        users.push({ email, password })
+        // Agregar el nuevo usuario a la "base de datos"
+        const newUser: User = { email, password, name };// Incluye el nombre
+        setUsers(prevUsers => [...prevUsers, newUser])
         // Redirigir a la página principal después del registro exitoso
         router.push('/')
       }
@@ -135,7 +154,10 @@ export default function Login() {
 
             <div className="mt-6">
               <button
-                onClick={() => setIsLogin(!isLogin)}
+                onClick={() => {
+                  setIsLogin(!isLogin)
+                  if (isLogin) setName('') // Limpia el nombre al cambiar a inicio de sesión
+                }}
                 className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-blue-600 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
               >
                 {isLogin ? 'Crear una nueva cuenta' : 'Iniciar sesión'}
